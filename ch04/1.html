@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html>
+
+<body>
+  <p>11_02 homework1 typeof 陣列與物件練習 .start script</p>
+
+  <script>
+    // 建立空陣列
+    let friends = [];
+
+    // 第一位朋友
+    let friend1 = {
+      name: '陳大同',
+      age: 26,
+      hobbies: ['爬山', '看電影', '煮咖啡'],
+      contact: {
+        phone: '0911222222',
+        email: 'data@example.com'
+      }
+    };
+
+    console.log(friend1);
+
+    // 第二位朋友
+    let friend2 = {
+      name: '林小美',
+      age: 24,
+      hobbies: ['唱歌', '旅遊', '閱讀'],
+      contact: {
+        phone: '0933555333',
+        email: 'linmei@example.com'
+      }
+    };
+
+    console.log(friend2);    
+
+    // 第三位朋友
+    let friend3 = {
+      name: '蔡小倫',
+      age: 24,
+      hobbies: ['跑步', '游泳', '唱歌'],
+      contact: {
+        phone: '0922666888',
+        email: 'lun@example.com'
+      }
+    };
+
+    console.log(friend3);
+
+    // 把三位朋友都放入陣列
+    friends.push(friend1, friend2, friend3);
+
+    // 額外示範：查看每位朋友的名字與興趣
+    console.log('共有朋友：', friends.length, '位');
+    console.log('第二位朋友的名字：', friends[1].name);
+    console.log('第一位朋友的第三個興趣：', friends[0].hobbies[2]);
+    console.log('第三個朋友的 mail：', friends[2].contact.email);
+
+    // 新增第二位朋友的興趣
+    console.log('第二位朋友新增一個興趣 [游泳]');
+    friends[1].hobbies.push('游泳');
+
+    // 印出結果
+    console.log(friends[1]);
+  </script>
+
+  <p>11_02 homework1 End script</p>
+</body>
+
+</html>
