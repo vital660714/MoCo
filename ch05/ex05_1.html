@@ -1,3 +1,26 @@
+<!--
+========================================================
+ DeviceOrientation + DeviceMotion 整合示範
+
+ 1. DeviceOrientation API — 取得手機旋轉角度
+    - 使用 alpha / beta / gamma（或 Z / X / Y 軸旋轉）
+    - 用來判斷手機傾斜方向（決定小球的移動方向）
+
+ 2. DeviceMotion API — 取得加速度與重力方向
+    - 使用 accelerationIncludingGravity 取得：
+        ax（X軸加速度）
+        ay（Y軸加速度）
+        az（Z軸加速度）
+    - 使小球移動更接近真實物理效果（傾斜 → 下滑）
+
+ 本程式示範：
+    - 感測器資料讀取（orientation + motion）
+    - 即時更新小球位置
+    - 計時器 + 遊戲勝負判定
+========================================================
+-->
+
+
 <!DOCTYPE html>
 <html lang="zh-Hant">
 <head>
