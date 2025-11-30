@@ -35,16 +35,35 @@
     padding: 10px 20px;
     font-size: 18px;
   }
+  #timeBox {
+    margin-top: 10px;
+    font-size: 18px;
+  }
+  #timer {
+    font-size: 22px;
+    color: #e74c3c;
+    font-weight: bold;
+    margin-top: 5px;
+  }
 </style>
 </head>
 
 <body>
 
-<!-- 🔥 作業主題 -->
 <h2 id="title">DeviceOrientation + DeviceMotion 整合示範</h2>
 
-<div id="msg">允許讀取感測器後開始遊戲</div>
+<div id="msg">輸入挑戰時間後開始遊戲</div>
+
+<!-- 🔥 使用者輸入挑戰秒數 -->
+<div id="timeBox">
+  挑戰時間：<input id="timeInput" type="number" value="10" min="1" style="width:70px;"> 秒
+</div>
+
 <button id="startBtn">開始遊戲</button>
+
+<!-- 顯示倒數 -->
+<div id="timer"></div>
+
 <canvas id="game" width="360" height="600"></canvas>
 
 <script>
@@ -53,11 +72,16 @@ const canvas = document.getElementById("game");
 const ctx = canvas.getContext("2d");
 
 let ball = { x: 50, y: 50, radius: 10, vx: 0, vy: 0 };
-let beta = 0;  // 前後
-let gamma = 0; // 左右
+let beta = 0;  
+let gamma = 0; 
 let playing = false;
 
+let timeLimit = 10;        // 挑戰時間
+let remainingTime = 10;    // 倒數
+let timerRunning = false;
+
 const msg = document.getElementById("msg");
+const timerEl = document.getElementById("timer");
 
 // === 迷宮牆壁 ===
 const walls = [
@@ -78,9 +102,16 @@ const goal = {x: 280, y: 520, w: 50, h: 50};
 
 
 // =========================
-// 允許感測器按鈕
+// 允許感測器 + 開始遊戲
 // =========================
 document.getElementById("startBtn").addEventListener("click", async () => {
+
+  // 讀取使用者輸入的挑戰秒數
+  timeLimit = Number(document.getElementById("timeInput").value) || 10;
+  remainingTime = timeLimit;
+
+  timerEl.textContent = remainingTime + " 秒";
+
   if (window.DeviceOrientationEvent && DeviceOrientationEvent.requestPermission) {
     try {
       const permission = await DeviceOrientationEvent.requestPermission();
@@ -96,17 +127,46 @@ document.getElementById("startBtn").addEventListener("click", async () => {
 
   msg.textContent = "傾斜手機控制小球 — 開始！";
   document.getElementById("startBtn").style.display = "none";
+  document.getElementById("timeBox").style.display = "none";
+
   playing = true;
+
+  startTimer();
 });
 
 
 // =========================
-// 讀取 DeviceOrientation
+// Device Orientation
 // =========================
 window.addEventListener("deviceorientation", (event) => {
   beta = event.beta;
   gamma = event.gamma;
 });
+
+
+// =========================
+// 啟動倒數計時
+// =========================
+function startTimer() {
+  timerRunning = true;
+
+  const interval = setInterval(() => {
+    if (!timerRunning) {
+      clearInterval(interval);
+      return;
+    }
+
+    remainingTime--;
+    timerEl.textContent = remainingTime + " 秒";
+
+    if (remainingTime <= 0) {
+      clearInterval(interval);
+      timerRunning = false;
+      playing = false;
+      msg.textContent = "時間到！挑戰失敗 😵";
+    }
+  }, 1000);
+}
 
 
 // =========================
@@ -121,23 +181,18 @@ loop();
 
 
 // =========================
-// 更新物理
+// 更新遊戲物理
 // =========================
 function update() {
-
-  // 傾斜控制重力方向
   let gx = gamma / 45;
   let gy = beta / 45;
 
-  // 加速度（模擬重力）
   ball.vx += gx;
   ball.vy += gy;
 
-  // 摩擦力
   ball.vx *= 0.98;
   ball.vy *= 0.98;
 
-  // 更新位置
   ball.x += ball.vx;
   ball.y += ball.vy;
 
@@ -149,24 +204,26 @@ function update() {
     ball.vy *= -0.5;
   }
 
-  // 牆壁碰撞
+  // 牆壁
   walls.forEach(w => collideWall(w));
 
-  // 洞口 -> Game Over
+  // 洞口 → 失敗
   for (let h of holes) {
     let dx = ball.x - h.x;
     let dy = ball.y - h.y;
     if (Math.sqrt(dx*dx + dy*dy) < h.r) {
       playing = false;
-      msg.textContent = "掉進洞裡了！按 F5 重新開始";
+      timerRunning = false;
+      msg.textContent = "掉進洞裡了！挑戰失敗 😵";
       return;
     }
   }
 
-  // 抵達終點
+  // 終點 → 成功
   if (ball.x > goal.x && ball.x < goal.x + goal.w &&
       ball.y > goal.y && ball.y < goal.y + goal.h) {
     playing = false;
+    timerRunning = false;
     msg.textContent = "恭喜過關！🎉";
   }
 }
@@ -181,7 +238,6 @@ function collideWall(w) {
       ball.y + ball.radius > w.y &&
       ball.y - ball.radius < w.y + w.h) {
 
-    // 簡單反彈
     if (ball.x < w.x || ball.x > w.x + w.w) ball.vx *= -0.5;
     if (ball.y < w.y || ball.y > w.y + w.h) ball.vy *= -0.5;
   }
