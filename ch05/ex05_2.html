@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>地理位置示範 (navigator.geolocation)</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      padding: 20px;
+    }
+    .info {
+      margin-top: 20px;
+      padding: 10px;
+      border: 1px solid #ccc;
+      border-radius: 8px;
+      width: fit-content;
+      background-color: #f9f9f9;
+    }
+  </style>
+</head>
+<body>
+  <h1>取得當前位置  (navigator.geolocation)</h1>
+  <button id="getLocationBtn">取得位置</button>
+
+  <div class="info" id="locationInfo">
+    <p>緯度: <span id="latitude">-</span></p>
+    <p>經度: <span id="longitude">-</span></p>
+  </div>
+
+  <script>
+    const getLocationBtn = document.getElementById("getLocationBtn");
+    const latitudeEl = document.getElementById("latitude");
+    const longitudeEl = document.getElementById("longitude");
+
+    if (!("geolocation" in navigator)) {
+      alert("您的瀏覽器不支援地理位置服務。");
+    }
+
+    getLocationBtn.addEventListener("click", () => {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          const { latitude, longitude } = position.coords;
+          latitudeEl.textContent = latitude.toFixed(6);
+          longitudeEl.textContent = longitude.toFixed(6);
+        },
+        (error) => {
+          console.error("位置取得失敗:", error);
+          alert("無法取得位置，請確認裝置是否允許定位。");
+        },
+        {
+          enableHighAccuracy: true,
+          timeout: 10000,
+          maximumAge: 0
+        }
+      );
+    });
+  </script>
+</body>
+</html>
