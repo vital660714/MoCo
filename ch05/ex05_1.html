@@ -3,153 +3,220 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Orientation + Motion Demo</title>
+<title>重力迷宮遊戲</title>
+
 <style>
-    body { font-family: Arial, sans-serif; padding: 20px; line-height: 1.8; }
-
-    button { padding: 10px 18px; font-size: 1.2rem; }
-    h3 { margin-top: 30px; }
-    .val { font-size: 1.1rem; }
-
-    /* ⭐ 新增：小球 */
-    #ball {
-        width: 40px;
-        height: 40px;
-        background: red;
-        border-radius: 50%;
-        position: fixed;
-        top: 50%;
-        left: 50%;
-        transform: translate(-20px, -20px);
-        transition: transform 0.05s linear; /* 平滑過渡 */
-    }
-
+  body {
+    margin: 0;
+    overflow: hidden;
+    background: #f0f0f0;
+    font-family: sans-serif;
+    text-align: center;
+  }
+  #title {
+    margin-top: 15px;
+    font-size: 22px;
+    font-weight: bold;
+  }
+  #msg {
+    margin-top: 5px;
+    width: 100%;
+    color: #333;
+    font-size: 18px;
+  }
+  canvas {
+    background: #ffffff;
+    display: block;
+    margin: 10px auto 0 auto;
+    border: 2px solid #000;
+  }
+  #startBtn {
+    margin-top: 10px;
+    padding: 10px 20px;
+    font-size: 18px;
+  }
 </style>
 </head>
+
 <body>
 
-<h2>DeviceOrientation + DeviceMotion Demo + 小球控制</h2>
-<p>按下按鈕授權後，旋轉 / 傾斜手機試試看，小球會跟著動！</p>
+<!-- 🔥 作業主題 -->
+<h2 id="title">DeviceOrientation + DeviceMotion 整合示範</h2>
 
-<button id="btn">取得感測器授權並開始</button>
-
-<!-- ⭐ 新增小球 -->
-<div id="ball"></div>
-
-<h3>DeviceOrientation (方向角度)</h3>
-<p class="val">Alpha (Z)：<span id="alpha">-</span></p>
-<p class="val">Beta (X)：<span id="beta">-</span></p>
-<p class="val">Gamma (Y)：<span id="gamma">-</span></p>
-
-<h3>DeviceMotion (加速度)</h3>
-<p class="val">ax：<span id="ax">-</span></p>
-<p class="val">ay：<span id="ay">-</span></p>
-<p class="val">az：<span id="az">-</span></p>
-
-<h3>DeviceMotion (含重力)</h3>
-<p class="val">ax_g：<span id="ax_g">-</span></p>
-<p class="val">ay_g：<span id="ay_g">-</span></p>
-<p class="val">az_g：<span id="az_g">-</span></p>
-
-<h3>Gyroscope 旋轉速率</h3>
-<p class="val">α(速度)：<span id="rAlpha">-</span></p>
-<p class="val">β(速度)：<span id="rBeta">-</span></p>
-<p class="val">γ(速度)：<span id="rGamma">-</span></p>
+<div id="msg">允許讀取感測器後開始遊戲</div>
+<button id="startBtn">開始遊戲</button>
+<canvas id="game" width="360" height="600"></canvas>
 
 <script>
-const btn = document.getElementById("btn");
+// === 基本設定 ===
+const canvas = document.getElementById("game");
+const ctx = canvas.getContext("2d");
 
-// Orientation
-const alphaEl = document.getElementById("alpha");
-const betaEl  = document.getElementById("beta");
-const gammaEl = document.getElementById("gamma");
+let ball = { x: 50, y: 50, radius: 10, vx: 0, vy: 0 };
+let beta = 0;  // 前後
+let gamma = 0; // 左右
+let playing = false;
 
-// Acceleration
-const axEl = document.getElementById("ax");
-const ayEl = document.getElementById("ay");
-const azEl = document.getElementById("az");
+const msg = document.getElementById("msg");
 
-// Acceleration including gravity
-const axgEl = document.getElementById("ax_g");
-const aygEl = document.getElementById("ay_g");
-const azgEl = document.getElementById("az_g");
+// === 迷宮牆壁 ===
+const walls = [
+  {x: 0, y: 100, w: 260, h: 20},
+  {x: 100, y: 200, w: 260, h: 20},
+  {x: 0, y: 300, w: 260, h: 20},
+  {x: 100, y: 400, w: 260, h: 20},
+];
 
-// Rotation rate
-const rAlphaEl = document.getElementById("rAlpha");
-const rBetaEl  = document.getElementById("rBeta");
-const rGammaEl = document.getElementById("rGamma");
+// === 洞口 ===
+const holes = [
+  {x: 180, y: 150, r: 18},
+  {x: 70, y: 350, r: 18},
+];
 
-// ⭐ 新增：小球
-const ball = document.getElementById("ball");
-let ballX = 0;
-let ballY = 0;
+// === 終點 ===
+const goal = {x: 280, y: 520, w: 50, h: 50};
 
-btn.addEventListener("click", async () => {
+
+// =========================
+// 允許感測器按鈕
+// =========================
+document.getElementById("startBtn").addEventListener("click", async () => {
+  if (window.DeviceOrientationEvent && DeviceOrientationEvent.requestPermission) {
     try {
-        if (!window.DeviceMotionEvent && !window.DeviceOrientationEvent) {
-            alert("此裝置不支援 Motion/Orientation 感測器");
-            return;
-        }
-
-        if (typeof DeviceOrientationEvent?.requestPermission === "function") {
-            const r1 = await DeviceOrientationEvent.requestPermission();
-            if (r1 !== "granted") {
-                alert("未允許讀取 DeviceOrientation");
-                return;
-            }
-        }
-
-        if (typeof DeviceMotionEvent?.requestPermission === "function") {
-            const r2 = await DeviceMotionEvent.requestPermission();
-            if (r2 !== "granted") {
-                alert("未允許讀取 DeviceMotion");
-                return;
-            }
-        }
-
-        // ======== DeviceOrientation Listener ========
-        window.addEventListener("deviceorientation", (event) => {
-            alphaEl.textContent = event.alpha?.toFixed(2) ?? "-";
-            betaEl.textContent  = event.beta?.toFixed(2) ?? "-";
-            gammaEl.textContent = event.gamma?.toFixed(2) ?? "-";
-
-            // ⭐ 小球移動：beta = 前後, gamma = 左右
-            const x = event.gamma;  // -90 ~ 90
-            const y = event.beta;   // -180 ~ 180
-
-            const sensitivity = 5; // 調整移動速度
-            ballX = x * sensitivity;
-            ballY = y * sensitivity;
-
-            ball.style.transform = `translate(${ballX}px, ${ballY}px)`;
-        });
-
-        // ======== DeviceMotion Listener ========
-        window.addEventListener("devicemotion", (event) => {
-            const acc = event.acceleration || {};
-            axEl.textContent = acc.x?.toFixed(2) ?? "-";
-            ayEl.textContent = acc.y?.toFixed(2) ?? "-";
-            azEl.textContent = acc.z?.toFixed(2) ?? "-";
-
-            const accG = event.accelerationIncludingGravity || {};
-            axgEl.textContent = accG.x?.toFixed(2) ?? "-";
-            aygEl.textContent = accG.y?.toFixed(2) ?? "-";
-            azgEl.textContent = accG.z?.toFixed(2) ?? "-";
-
-            const rot = event.rotationRate || {};
-            rAlphaEl.textContent = rot.alpha?.toFixed(2) ?? "-";
-            rBetaEl.textContent  = rot.beta?.toFixed(2) ?? "-";
-            rGammaEl.textContent = rot.gamma?.toFixed(2) ?? "-";
-        });
-
-        btn.disabled = true;
-        btn.textContent = "感測器已啟動";
-
-    } catch (err) {
-        alert("錯誤：" + err);
+      const permission = await DeviceOrientationEvent.requestPermission();
+      if (permission !== "granted") {
+        alert("未允許感測器，無法玩遊戲");
+        return;
+      }
+    } catch (e) {
+      alert("感測器權限錯誤：" + e);
+      return;
     }
-});
-</script>
+  }
 
+  msg.textContent = "傾斜手機控制小球 — 開始！";
+  document.getElementById("startBtn").style.display = "none";
+  playing = true;
+});
+
+
+// =========================
+// 讀取 DeviceOrientation
+// =========================
+window.addEventListener("deviceorientation", (event) => {
+  beta = event.beta;
+  gamma = event.gamma;
+});
+
+
+// =========================
+// 主遊戲回圈
+// =========================
+function loop() {
+  if (playing) update();
+  draw();
+  requestAnimationFrame(loop);
+}
+loop();
+
+
+// =========================
+// 更新物理
+// =========================
+function update() {
+
+  // 傾斜控制重力方向
+  let gx = gamma / 45;
+  let gy = beta / 45;
+
+  // 加速度（模擬重力）
+  ball.vx += gx;
+  ball.vy += gy;
+
+  // 摩擦力
+  ball.vx *= 0.98;
+  ball.vy *= 0.98;
+
+  // 更新位置
+  ball.x += ball.vx;
+  ball.y += ball.vy;
+
+  // 邊界反彈
+  if (ball.x < ball.radius || ball.x > canvas.width - ball.radius) {
+    ball.vx *= -0.5;
+  }
+  if (ball.y < ball.radius || ball.y > canvas.height - ball.radius) {
+    ball.vy *= -0.5;
+  }
+
+  // 牆壁碰撞
+  walls.forEach(w => collideWall(w));
+
+  // 洞口 -> Game Over
+  for (let h of holes) {
+    let dx = ball.x - h.x;
+    let dy = ball.y - h.y;
+    if (Math.sqrt(dx*dx + dy*dy) < h.r) {
+      playing = false;
+      msg.textContent = "掉進洞裡了！按 F5 重新開始";
+      return;
+    }
+  }
+
+  // 抵達終點
+  if (ball.x > goal.x && ball.x < goal.x + goal.w &&
+      ball.y > goal.y && ball.y < goal.y + goal.h) {
+    playing = false;
+    msg.textContent = "恭喜過關！🎉";
+  }
+}
+
+
+// =========================
+// 球 vs 牆壁
+// =========================
+function collideWall(w) {
+  if (ball.x + ball.radius > w.x &&
+      ball.x - ball.radius < w.x + w.w &&
+      ball.y + ball.radius > w.y &&
+      ball.y - ball.radius < w.y + w.h) {
+
+    // 簡單反彈
+    if (ball.x < w.x || ball.x > w.x + w.w) ball.vx *= -0.5;
+    if (ball.y < w.y || ball.y > w.y + w.h) ball.vy *= -0.5;
+  }
+}
+
+
+// =========================
+// 繪製畫面
+// =========================
+function draw() {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  // 終點
+  ctx.fillStyle = "#2ecc71";
+  ctx.fillRect(goal.x, goal.y, goal.w, goal.h);
+
+  // 牆壁
+  ctx.fillStyle = "#333";
+  walls.forEach(w => ctx.fillRect(w.x, w.y, w.w, w.h));
+
+  // 洞口
+  ctx.fillStyle = "#444";
+  holes.forEach(h => {
+    ctx.beginPath();
+    ctx.arc(h.x, h.y, h.r, 0, Math.PI * 2);
+    ctx.fill();
+  });
+
+  // 小球
+  ctx.fillStyle = "#3498db";
+  ctx.beginPath();
+  ctx.arc(ball.x, ball.y, ball.radius, 0, Math.PI * 2);
+  ctx.fill();
+}
+
+</script>
 </body>
 </html>
